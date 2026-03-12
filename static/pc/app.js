@@ -7,15 +7,24 @@
 
   let currentAssistantEl = null;
   let currentContent = "";
-  let autoScroll = true;
   let nextIndex = 0;
 
+  let userScrolled = false;
+  let scrollLock = false;
+
   chat.addEventListener("scroll", () => {
-    autoScroll = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
+    if (scrollLock) return;
+    const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
+    userScrolled = !atBottom;
   });
 
   function scrollToBottom() {
-    if (autoScroll) chat.scrollTop = chat.scrollHeight;
+    if (userScrolled) return;
+    scrollLock = true;
+    requestAnimationFrame(() => {
+      chat.scrollTop = chat.scrollHeight;
+      scrollLock = false;
+    });
   }
 
   function setStatus(connected, text) {
