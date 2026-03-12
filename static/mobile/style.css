@@ -151,6 +151,11 @@ header h1 { font-size: 18px; font-weight: 600; }
 .btn-save { background: #2563eb; color: #fff; }
 .btn-cancel { background: #333; color: #ccc; }
 
+/* --- Chatting mode (hide clutter after first message) --- */
+body.chatting .room-url { display: none !important; }
+body.chatting .status-bar { display: none; }
+body.chatting .settings-row { display: none; }
+
 /* --- Input mode --- */
 body.input-mode header { padding: 4px 12px; }
 body.input-mode header h1 { font-size: 14px; }

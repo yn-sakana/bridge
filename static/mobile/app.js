@@ -201,6 +201,10 @@
     streaming = true;
     updateUI();
 
+    // Hide room info and settings after first message
+    roomUrlEl.classList.remove("active");
+    document.body.classList.add("chatting");
+
     try {
       const body = {
         room_id: roomId,
