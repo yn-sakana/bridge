@@ -148,6 +148,7 @@ header h1 { font-size: 18px; font-weight: 600; }
 .overlay-actions button {
   flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer;
 }
+.cfg-url { font-size: 13px; color: #7c9eff; word-break: break-all; }
 .btn-save { background: #2563eb; color: #fff; }
 .btn-cancel { background: #333; color: #ccc; }
 

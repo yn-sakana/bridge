@@ -79,6 +79,18 @@
 <div class="overlay" id="overlaySettings">
   <div class="overlay-content">
     <h2>設定</h2>
+    <div class="field" id="cfgRoomField" style="display:none">
+      <label>Room URL</label>
+      <div id="cfgRoomUrl" class="cfg-url"></div>
+    </div>
+    <div class="field">
+      <label>Provider</label>
+      <select id="cfgProvider"></select>
+    </div>
+    <div class="field">
+      <label>Model</label>
+      <select id="cfgModel"></select>
+    </div>
     <div class="field">
       <label>Temperature</label>
       <input type="range" id="cfgTemp" min="0" max="2" step="0.1" value="0.7">

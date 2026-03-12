@@ -93,13 +93,40 @@
     }
   });
 
-  // --- Settings ---
+  // --- Settings overlay ---
+  const cfgProvider = $("cfgProvider");
+  const cfgModel = $("cfgModel");
+  const cfgRoomField = $("cfgRoomField");
+  const cfgRoomUrl = $("cfgRoomUrl");
+
   $("btnSettings").onclick = () => {
     cfgTemp.value = config.temperature;
     cfgTempVal.textContent = config.temperature;
     cfgSystem.value = config.system_prompt;
     selThinking2.value = selThinking.value;
+    // Sync provider/model into overlay
+    cfgProvider.innerHTML = selProvider.innerHTML;
+    cfgProvider.value = selProvider.value;
+    cfgModel.innerHTML = selModel.innerHTML;
+    cfgModel.value = selModel.value;
+    // Show room URL if available
+    if (roomId) {
+      cfgRoomField.style.display = "";
+      cfgRoomUrl.textContent = roomUrlText.textContent;
+    }
     overlaySettings.classList.add("active");
+  };
+  cfgProvider.onchange = () => {
+    selProvider.value = cfgProvider.value;
+    syncProvider2();
+    loadModels().then(() => {
+      cfgModel.innerHTML = selModel.innerHTML;
+      cfgModel.value = selModel.value;
+    });
+  };
+  cfgModel.onchange = () => {
+    selModel.value = cfgModel.value;
+    syncModel2();
   };
   $("btnSettingsCancel").onclick = () =>
     overlaySettings.classList.remove("active");
@@ -107,6 +134,10 @@
     config.temperature = parseFloat(cfgTemp.value);
     config.system_prompt = cfgSystem.value;
     selThinking.value = selThinking2.value;
+    selProvider.value = cfgProvider.value;
+    selModel.value = cfgModel.value;
+    syncProvider2();
+    syncModel2();
     saveConfig();
     overlaySettings.classList.remove("active");
   };
