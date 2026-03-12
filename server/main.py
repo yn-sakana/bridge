@@ -6,6 +6,7 @@ import re
 import uuid
 from pathlib import Path
 
+import yaml
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import (
     HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse,
@@ -19,6 +20,27 @@ app = FastAPI()
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 ROOM_ID_RE = re.compile(r"^[a-z0-9]{7}$")
+CONFIG_PATH = Path(__file__).parent.parent / "bridge.yaml"
+
+DEFAULT_CONFIG = {
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "temperature": 0.7,
+    "system_prompt": "",
+}
+
+
+def _load_config() -> dict:
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return {**DEFAULT_CONFIG, **data}
+    return dict(DEFAULT_CONFIG)
+
+
+def _save_config(data: dict):
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
 
 # --- Startup ---
@@ -108,6 +130,23 @@ async def api_events(room_id: str, after: int = 0):
         "events": [{"event": e, "data": d} for e, d in events],
         "next": len(room.events),
     }
+
+
+# --- API: Config (mobile only) ---
+@app.get("/api/config")
+async def api_get_config():
+    return _load_config()
+
+
+@app.put("/api/config")
+async def api_put_config(request: Request):
+    body = await request.json()
+    current = _load_config()
+    for key in DEFAULT_CONFIG:
+        if key in body:
+            current[key] = body[key]
+    _save_config(current)
+    return current
 
 
 # --- API: Model list relay ---

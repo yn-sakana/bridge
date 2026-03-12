@@ -12,17 +12,28 @@ CLI_PROVIDERS = {"claude_code", "codex"}
 
 
 def _parse_sse_lines(chunk: str):
-    """Parse SSE chunk into (event, data) pairs."""
+    """Parse SSE chunk into (event, data) pairs.
+
+    Per SSE spec, multiple data: lines are joined with \\n,
+    and an event is dispatched on a blank line.
+    """
     current_event = ""
+    data_lines: list[str] = []
     for line in chunk.split("\n"):
         line = line.rstrip("\r")
         if line.startswith("event:"):
             current_event = line[6:].strip()
         elif line.startswith("data:"):
-            data = line[5:].strip()
-            if current_event:
-                yield current_event, data
-                current_event = ""
+            data_lines.append(line[5:].strip())
+        elif line == "":
+            # Blank line = dispatch event
+            if current_event and data_lines:
+                yield current_event, "\n".join(data_lines)
+            current_event = ""
+            data_lines = []
+    # Flush remaining (chunk may not end with blank line)
+    if current_event and data_lines:
+        yield current_event, "\n".join(data_lines)
 
 
 def _build_history_prompt(messages: list[dict], system_prompt: str) -> str:

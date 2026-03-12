@@ -1,11 +1,11 @@
 (function () {
   // --- State ---
-  let config = { temperature: 0.7, system_prompt: "" };
+  let config = { provider: "", model: "", temperature: 0.7, system_prompt: "" };
   let roomId = null;
   let sessionId = null;
   let messages = [];
   let streaming = false;
-  let inputMode = localStorage.getItem("bridge_mode") === "input";
+  let inputMode = false;
 
   // --- Elements ---
   const $ = (id) => document.getElementById(id);
@@ -49,7 +49,7 @@
   function applyMode() {
     document.body.classList.toggle("input-mode", inputMode);
     btnMode.classList.toggle("active", inputMode);
-    localStorage.setItem("bridge_mode", inputMode ? "input" : "standalone");
+    // mode is session-only, not persisted
   }
   applyMode();
 
@@ -77,14 +77,21 @@
     selProvider.value = selProvider2.value;
     loadModels();
   };
-  selModel.onchange = () => syncModel2();
-  selModel2.onchange = () => { selModel.value = selModel2.value; };
+  selModel.onchange = () => { syncModel2(); saveConfig(); };
+  selModel2.onchange = () => { selModel.value = selModel2.value; saveConfig(); };
 
   // --- Init ---
-  loadConfig();
   newSession();
-  syncProvider2();
-  loadModels();
+  (async () => {
+    await loadConfig();
+    syncProvider2();
+    await loadModels();
+    // Restore saved model after list is loaded
+    if (config.model) {
+      selModel.value = config.model;
+      syncModel2();
+    }
+  })();
 
   txtPrompt.addEventListener("input", () => {
     if (!inputMode) {
@@ -295,6 +302,7 @@
       const decoder = new TextDecoder();
       let assistantContent = "";
       let currentEvent = "";
+      let dataLines = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -305,22 +313,28 @@
           if (trimmed.startsWith("event:")) {
             currentEvent = trimmed.slice(6).trim();
           } else if (trimmed.startsWith("data:")) {
-            const data = trimmed.slice(5).trim();
-            if (currentEvent === "text") {
-              assistantContent += data;
-              appendToStream(data);
-            } else if (currentEvent === "done") {
-              endStream();
-            } else if (currentEvent === "error") {
-              endStream();
-              try {
-                const err = JSON.parse(data);
-                addChatMessage("assistant", "Error: " + (err.message || data));
-              } catch {
-                addChatMessage("assistant", "Error: " + data);
+            dataLines.push(trimmed.slice(5).trim());
+          } else if (trimmed === "") {
+            // Blank line = dispatch event
+            if (currentEvent && dataLines.length) {
+              const data = dataLines.join("\n");
+              if (currentEvent === "text") {
+                assistantContent += data;
+                appendToStream(data);
+              } else if (currentEvent === "done") {
+                endStream();
+              } else if (currentEvent === "error") {
+                endStream();
+                try {
+                  const err = JSON.parse(data);
+                  addChatMessage("assistant", "Error: " + (err.message || data));
+                } catch {
+                  addChatMessage("assistant", "Error: " + data);
+                }
               }
             }
             currentEvent = "";
+            dataLines = [];
           }
         }
       }
@@ -396,14 +410,31 @@
     }
   }
 
-  // --- Config persistence ---
-  function loadConfig() {
+  // --- Config (server-side yaml) ---
+  async function loadConfig() {
     try {
-      const saved = localStorage.getItem("bridge_config");
-      if (saved) Object.assign(config, JSON.parse(saved));
+      const res = await fetch("/api/config");
+      if (res.ok) {
+        const data = await res.json();
+        Object.assign(config, data);
+        if (data.provider) selProvider.value = data.provider;
+        if (data.temperature != null) config.temperature = data.temperature;
+        if (data.system_prompt != null) config.system_prompt = data.system_prompt;
+      }
     } catch {}
   }
-  function saveConfig() {
-    localStorage.setItem("bridge_config", JSON.stringify(config));
+  async function saveConfig() {
+    try {
+      await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: selProvider.value,
+          model: selModel.value,
+          temperature: config.temperature,
+          system_prompt: config.system_prompt,
+        }),
+      });
+    } catch {}
   }
 })();
