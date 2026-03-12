@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
-EXPIRY_SEC = 1800  # 30 min
+EXPIRY_SEC = 43200  # 12 hours
 
 
 @dataclass
@@ -57,7 +57,7 @@ def broadcast(room: Room, event: str, data: str):
 
 async def cleanup_loop():
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(600)
         now = time.time()
         expired = [
             rid for rid, room in _rooms.items()
