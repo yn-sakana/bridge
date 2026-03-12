@@ -26,6 +26,10 @@ def _parse_sse_lines(chunk: str):
 async def relay_chat(body: dict, room: Room):
     """Stream chat from fin-hub, fan out to PC clients. Yields SSE chunks for mobile."""
     hub_body = {k: v for k, v in body.items() if k != "room_id"}
+    # Send only the latest user message — fin-hub manages history via session_id
+    msgs = hub_body.get("messages", [])
+    if msgs:
+        hub_body["messages"] = [msgs[-1]]
 
     room.mobile_connected = True
     broadcast(room, "status", '{"mobile":true}')
