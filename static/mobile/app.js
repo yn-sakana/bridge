@@ -45,17 +45,6 @@
     if (autoScroll) chatArea.scrollTop = chatArea.scrollHeight;
   }
 
-  // --- Visual Viewport (soft keyboard handling) ---
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", () => {
-      document.body.style.height = window.visualViewport.height + "px";
-      scrollToBottom();
-    });
-    window.visualViewport.addEventListener("scroll", () => {
-      document.body.style.height = window.visualViewport.height + "px";
-    });
-  }
-
   // --- Mode toggle ---
   function applyMode() {
     document.body.classList.toggle("input-mode", inputMode);
