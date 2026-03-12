@@ -191,6 +191,13 @@
     return html;
   }
 
+  // Tap message to show/hide copy button on mobile
+  chatArea.addEventListener("click", (e) => {
+    const msg = e.target.closest(".msg");
+    if (!msg || e.target.closest(".msg-copy-btn,.copy-btn")) return;
+    msg.classList.toggle("show-copy");
+  });
+
   window.copyCode = function (id) {
     const el = document.getElementById(id);
     if (el) navigator.clipboard.writeText(el.textContent);
