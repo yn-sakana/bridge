@@ -22,8 +22,8 @@
     if (userScrolled) return;
     scrollLock = true;
     requestAnimationFrame(() => {
-      chat.scrollTop = chat.scrollHeight;
-      scrollLock = false;
+      chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+      setTimeout(() => { scrollLock = false; }, 200);
     });
   }
 
