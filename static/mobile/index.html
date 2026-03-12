@@ -9,13 +9,11 @@
 <body>
 <header>
   <h1>Bridge</h1>
-  <button class="btn-icon" id="btnSettings">⚙</button>
+  <div class="header-right">
+    <button class="btn-icon" id="btnMode" title="モード切替">⇄</button>
+    <button class="btn-icon" id="btnSettings">⚙</button>
+  </div>
 </header>
-
-<div class="status-bar">
-  <span class="status-dot" id="statusDot"></span>
-  <span id="statusText">未接続</span>
-</div>
 
 <div class="room-url" id="roomUrl">
   <img id="qrImg" alt="QR" style="display:none">
@@ -23,44 +21,56 @@
   <div class="hint">このURLをPCブラウザで開いてください</div>
 </div>
 
-<div class="settings-row">
-  <label>Provider</label>
-  <select id="selProvider">
-    <option value="anthropic">Anthropic</option>
-    <option value="openai">OpenAI</option>
-    <option value="google">Google</option>
-    <option value="claude_code">Claude Code</option>
-    <option value="codex">Codex</option>
-    <option value="ollama">Ollama</option>
-  </select>
-</div>
-<div class="settings-row">
-  <label>Model</label>
-  <select id="selModel"><option value="">--</option></select>
-</div>
-<div class="settings-row">
-  <label>Thinking</label>
-  <select id="selThinking">
-    <option value="">off</option>
-    <option value="auto">auto</option>
-    <option value="low">low</option>
-    <option value="medium">medium</option>
-    <option value="high">high</option>
-  </select>
+<!-- Compact bar for input mode -->
+<div class="compact-bar" id="compactBar">
+  <span class="status-dot" id="statusDot2"></span>
+  <select id="selProvider2" class="compact-select"></select>
+  <select id="selModel2" class="compact-select"></select>
+  <button class="compact-btn" id="btnNewSession2">新規</button>
 </div>
 
-<div class="chat-toggle">
-  <label><input type="checkbox" id="chkShowChat" checked> 出力を表示</label>
-</div>
-<div class="main" id="chatArea">
+<!-- Full controls for standalone mode -->
+<div id="fullControls">
+  <div class="status-bar">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">未接続</span>
+  </div>
+
+  <div class="settings-row">
+    <label>Provider</label>
+    <select id="selProvider">
+      <option value="anthropic">Anthropic</option>
+      <option value="openai">OpenAI</option>
+      <option value="google">Google</option>
+      <option value="claude_code">Claude Code</option>
+      <option value="codex">Codex</option>
+      <option value="ollama">Ollama</option>
+    </select>
+  </div>
+  <div class="settings-row">
+    <label>Model</label>
+    <select id="selModel"><option value="">--</option></select>
+  </div>
+  <div class="settings-row">
+    <label>Thinking</label>
+    <select id="selThinking">
+      <option value="">off</option>
+      <option value="auto">auto</option>
+      <option value="low">low</option>
+      <option value="medium">medium</option>
+      <option value="high">high</option>
+    </select>
+  </div>
+
+  <div class="main" id="chatArea"></div>
 </div>
 
 <div class="input-area">
-  <textarea id="txtPrompt" rows="2" placeholder="メッセージを入力..."></textarea>
+  <textarea id="txtPrompt" rows="1" placeholder="メッセージを入力..."></textarea>
   <button class="btn-send" id="btnSend">送信</button>
 </div>
 
-<div class="session-bar">
+<div class="session-bar" id="sessionBar">
   <span>Session: <span id="sessionId">--</span></span>
   <button id="btnNewSession">新規</button>
 </div>
@@ -73,6 +83,16 @@
       <label>Temperature</label>
       <input type="range" id="cfgTemp" min="0" max="2" step="0.1" value="0.7">
       <span id="cfgTempVal">0.7</span>
+    </div>
+    <div class="field">
+      <label>Thinking</label>
+      <select id="selThinking2">
+        <option value="">off</option>
+        <option value="auto">auto</option>
+        <option value="low">low</option>
+        <option value="medium">medium</option>
+        <option value="high">high</option>
+      </select>
     </div>
     <div class="field">
       <label>System Prompt</label>

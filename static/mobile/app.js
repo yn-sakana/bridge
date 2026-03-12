@@ -5,45 +5,82 @@
   let sessionId = null;
   let messages = [];
   let streaming = false;
+  let inputMode = localStorage.getItem("bridge_mode") === "input";
 
   // --- Elements ---
   const $ = (id) => document.getElementById(id);
   const statusDot = $("statusDot");
+  const statusDot2 = $("statusDot2");
   const statusText = $("statusText");
   const roomUrlEl = $("roomUrl");
   const roomUrlText = $("roomUrlText");
   const selProvider = $("selProvider");
   const selModel = $("selModel");
   const selThinking = $("selThinking");
+  const selThinking2 = $("selThinking2");
+  const selProvider2 = $("selProvider2");
+  const selModel2 = $("selModel2");
   const txtPrompt = $("txtPrompt");
   const btnSend = $("btnSend");
   const sessionIdEl = $("sessionId");
   const btnNewSession = $("btnNewSession");
+  const btnNewSession2 = $("btnNewSession2");
   const chatArea = $("chatArea");
-  const chkShowChat = $("chkShowChat");
   const cfgTemp = $("cfgTemp");
   const cfgTempVal = $("cfgTempVal");
   const cfgSystem = $("cfgSystem");
   const overlaySettings = $("overlaySettings");
+  const btnMode = $("btnMode");
 
   let currentAssistantEl = null;
   let currentContent = "";
 
+  // --- Mode toggle ---
+  function applyMode() {
+    document.body.classList.toggle("input-mode", inputMode);
+    btnMode.classList.toggle("active", inputMode);
+    localStorage.setItem("bridge_mode", inputMode ? "input" : "standalone");
+  }
+  applyMode();
+
+  btnMode.onclick = () => {
+    inputMode = !inputMode;
+    applyMode();
+    txtPrompt.focus();
+  };
+
+  // --- Sync compact selects with full selects ---
+  function syncProvider2() {
+    selProvider2.innerHTML = selProvider.innerHTML;
+    selProvider2.value = selProvider.value;
+  }
+  function syncModel2() {
+    selModel2.innerHTML = selModel.innerHTML;
+    selModel2.value = selModel.value;
+  }
+
+  selProvider.onchange = () => {
+    syncProvider2();
+    loadModels();
+  };
+  selProvider2.onchange = () => {
+    selProvider.value = selProvider2.value;
+    loadModels();
+  };
+  selModel.onchange = () => syncModel2();
+  selModel2.onchange = () => { selModel.value = selModel2.value; };
+
   // --- Init ---
   loadConfig();
   newSession();
-
-  // Chat visibility toggle
-  chkShowChat.checked = localStorage.getItem("bridge_show_chat") !== "false";
-  chatArea.classList.toggle("hidden", !chkShowChat.checked);
-  chkShowChat.onchange = () => {
-    chatArea.classList.toggle("hidden", !chkShowChat.checked);
-    localStorage.setItem("bridge_show_chat", chkShowChat.checked);
-  };
+  syncProvider2();
+  loadModels();
 
   txtPrompt.addEventListener("input", () => {
-    txtPrompt.style.height = "auto";
-    txtPrompt.style.height = Math.min(txtPrompt.scrollHeight, 200) + "px";
+    if (!inputMode) {
+      txtPrompt.style.height = "auto";
+      txtPrompt.style.height = Math.min(txtPrompt.scrollHeight, 200) + "px";
+    }
   });
 
   // --- Settings ---
@@ -51,6 +88,7 @@
     cfgTemp.value = config.temperature;
     cfgTempVal.textContent = config.temperature;
     cfgSystem.value = config.system_prompt;
+    selThinking2.value = selThinking.value;
     overlaySettings.classList.add("active");
   };
   $("btnSettingsCancel").onclick = () =>
@@ -58,21 +96,16 @@
   $("btnSettingsSave").onclick = () => {
     config.temperature = parseFloat(cfgTemp.value);
     config.system_prompt = cfgSystem.value;
+    selThinking.value = selThinking2.value;
     saveConfig();
     overlaySettings.classList.remove("active");
   };
   cfgTemp.oninput = () => (cfgTempVal.textContent = cfgTemp.value);
 
-  // --- Provider / Model ---
-  selProvider.onchange = () => loadModels();
-  loadModels();
-
   // --- Room ---
   async function createRoom() {
     try {
-      const res = await fetch("/api/room", {
-        method: "POST",
-      });
+      const res = await fetch("/api/room", { method: "POST" });
       if (!res.ok) throw new Error("Room creation failed: " + res.status);
       const data = await res.json();
       roomId = data.room_id;
@@ -166,15 +199,12 @@
 
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) throw new Error("Chat failed: " + res.status);
 
-      // Parse SSE stream (fin-hub format: event: text, data: raw text)
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
@@ -225,6 +255,7 @@
 
   // --- Session ---
   btnNewSession.onclick = () => newSession();
+  btnNewSession2.onclick = () => newSession();
 
   function newSession() {
     sessionId = crypto.randomUUID().slice(0, 8);
@@ -239,6 +270,7 @@
   async function loadModels() {
     selModel.innerHTML = '<option value="">読み込み中...</option>';
     selModel.disabled = true;
+    syncModel2();
     try {
       const res = await fetch("/api/models/" + selProvider.value);
       if (!res.ok) throw new Error("Failed");
@@ -247,8 +279,7 @@
       const models = data.models || data;
       if (Array.isArray(models)) {
         models.forEach((m) => {
-          const name =
-            typeof m === "string" ? m : m.id || m.name || m.model;
+          const name = typeof m === "string" ? m : m.id || m.name || m.model;
           const opt = document.createElement("option");
           opt.value = name;
           opt.textContent = name;
@@ -259,12 +290,14 @@
       selModel.innerHTML = '<option value="">取得失敗</option>';
     } finally {
       selModel.disabled = false;
+      syncModel2();
     }
   }
 
   // --- Status ---
   function setStatus(state, text) {
     statusDot.className = "status-dot " + state;
+    statusDot2.className = "status-dot " + state;
     statusText.textContent = text;
   }
 
@@ -277,7 +310,7 @@
     }
   }
 
-  // --- Config persistence (localStorage on trusted mobile) ---
+  // --- Config persistence ---
   function loadConfig() {
     try {
       const saved = localStorage.getItem("bridge_config");
