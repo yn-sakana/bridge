@@ -34,6 +34,27 @@
 
   let currentAssistantEl = null;
   let currentContent = "";
+  let autoScroll = true;
+
+  // --- Auto-scroll (ChatGPT style) ---
+  chatArea.addEventListener("scroll", () => {
+    autoScroll = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 50;
+  });
+
+  function scrollToBottom() {
+    if (autoScroll) chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  // --- Visual Viewport (soft keyboard handling) ---
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      document.body.style.height = window.visualViewport.height + "px";
+      scrollToBottom();
+    });
+    window.visualViewport.addEventListener("scroll", () => {
+      document.body.style.height = window.visualViewport.height + "px";
+    });
+  }
 
   // --- Mode toggle ---
   function applyMode() {
@@ -130,7 +151,7 @@
     div.className = "msg " + role;
     div.textContent = content;
     chatArea.appendChild(div);
-    chatArea.scrollTop = chatArea.scrollHeight;
+    scrollToBottom();
   }
 
   function startAssistantStream() {
@@ -139,14 +160,14 @@
     currentAssistantEl.className = "msg assistant";
     currentAssistantEl.innerHTML = '<span class="cursor"></span>';
     chatArea.appendChild(currentAssistantEl);
-    chatArea.scrollTop = chatArea.scrollHeight;
+    scrollToBottom();
   }
 
   function appendToStream(text) {
     if (!currentAssistantEl) startAssistantStream();
     currentContent += text;
     currentAssistantEl.textContent = currentContent;
-    chatArea.scrollTop = chatArea.scrollHeight;
+    scrollToBottom();
   }
 
   function endStream() {
