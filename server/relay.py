@@ -8,6 +8,8 @@ from .room import Room, broadcast
 FIN_HUB_URL = os.environ.get("FIN_HUB_URL", "http://localhost:8400")
 FIN_HUB_TOKEN = os.environ.get("HUB_AUTH_TOKEN", "")
 
+CLI_PROVIDERS = {"claude_code", "codex"}
+
 
 def _parse_sse_lines(chunk: str):
     """Parse SSE chunk into (event, data) pairs."""
@@ -23,13 +25,37 @@ def _parse_sse_lines(chunk: str):
                 current_event = ""
 
 
+def _build_history_prompt(messages: list[dict], system_prompt: str) -> str:
+    """For CLI providers: embed conversation history into system prompt."""
+    history_lines = []
+    for msg in messages[:-1]:  # exclude the latest (sent as prompt)
+        role = "user" if msg.get("role") == "user" else "assistant"
+        history_lines.append(f"- {role}: {msg.get('content', '')}")
+
+    parts = []
+    if system_prompt:
+        parts.append(system_prompt)
+    if history_lines:
+        parts.append("# Conversation History\n" + "\n".join(history_lines))
+    return "\n\n".join(parts)
+
+
 async def relay_chat(body: dict, room: Room):
     """Stream chat from fin-hub, fan out to PC clients. Yields SSE chunks for mobile."""
     hub_body = {k: v for k, v in body.items() if k != "room_id"}
-    # Send only the latest user message — fin-hub manages history via session_id
-    msgs = hub_body.get("messages", [])
-    if msgs:
-        hub_body["messages"] = [msgs[-1]]
+
+    provider = hub_body.get("provider", "")
+    all_msgs = hub_body.get("messages", [])
+
+    if provider in CLI_PROVIDERS and len(all_msgs) > 1:
+        # CLI providers are stateless — embed history in system prompt
+        hub_body["system_prompt"] = _build_history_prompt(
+            all_msgs, hub_body.get("system_prompt", "")
+        )
+        hub_body["messages"] = [all_msgs[-1]]
+    elif all_msgs:
+        # API providers — fin-hub manages history via session_id
+        hub_body["messages"] = [all_msgs[-1]]
 
     room.mobile_connected = True
     broadcast(room, "status", '{"mobile":true}')
