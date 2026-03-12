@@ -68,8 +68,6 @@ async def api_stream(room_id: str):
 
     async def event_generator():
         try:
-            # Padding to flush proxy buffers (Cloudflare Tunnel etc.)
-            yield ": " + " " * 8192 + "\n\n"
             # Initial event
             yield f"event: connected\ndata: {json.dumps({'mobile': room.mobile_connected})}\n\n"
 
