@@ -92,8 +92,7 @@
     const div = document.createElement("div");
     div.className = "msg " + role;
     div.innerHTML =
-      '<div class="role">' + role +
-      '</div><div class="content">' + renderMarkdown(content) +
+      '<div class="content">' + renderMarkdown(content) +
       '</div><button class="msg-copy-btn" onclick="copyMsg(this)">copy</button>';
     chat.appendChild(div);
     scrollToBottom();
@@ -105,7 +104,7 @@
     const div = document.createElement("div");
     div.className = "msg assistant";
     div.innerHTML =
-      '<div class="role">assistant</div><div class="content"><span class="cursor"></span></div>';
+      '<div class="content"><span class="cursor"></span></div>';
     chat.appendChild(div);
     currentAssistantEl = div;
     scrollToBottom();
