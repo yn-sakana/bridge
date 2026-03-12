@@ -26,6 +26,7 @@ header h1 { font-size: 18px; font-weight: 600; }
 }
 
 .msg {
+  flex-shrink: 0;
   max-width: 80%; padding: 12px 16px;
   border-radius: 12px; line-height: 1.6;
   word-wrap: break-word; overflow-wrap: break-word;
