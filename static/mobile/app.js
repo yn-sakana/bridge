@@ -81,30 +81,9 @@
       setStatus("waiting", "PC接続待ち...");
 
       // Generate QR code
-      try {
-        const qr = qrcode(0, "M");
-        qr.addData(data.url);
-        qr.make();
-        const canvas = document.getElementById("qrCanvas");
-        const size = 180;
-        const modules = qr.getModuleCount();
-        const cellSize = size / modules;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, size, size);
-        ctx.fillStyle = "#000000";
-        for (let r = 0; r < modules; r++) {
-          for (let c = 0; c < modules; c++) {
-            if (qr.isDark(r, c)) {
-              ctx.fillRect(c * cellSize, r * cellSize, cellSize + 0.5, cellSize + 0.5);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("QR generation failed:", e);
-      }
+      const qrImg = document.getElementById("qrImg");
+      qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(data.url);
+      qrImg.style.display = "block";
     } catch (e) {
       alert("ルーム作成エラー: " + e.message);
     }
