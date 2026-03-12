@@ -113,12 +113,11 @@ header h1 { font-size: 18px; font-weight: 600; }
   padding: 3px 6px; border-radius: 4px; font-size: 10px; cursor: pointer;
 }
 .msg-copy-btn {
-  display: block; margin-top: 4px;
+  display: none; margin-top: 4px;
   background: none; border: 1px solid #333; border-radius: 4px;
   color: #666; padding: 2px 8px; font-size: 10px; cursor: pointer;
-  opacity: 0; transition: opacity 0.2s;
 }
-.msg.show-copy .msg-copy-btn { opacity: 1; }
+.msg.show-copy .msg-copy-btn { display: block; }
 .msg-copy-btn:hover { color: #aaa; border-color: #555; }
 .msg .cursor {
   display: inline-block; width: 6px; height: 14px;
