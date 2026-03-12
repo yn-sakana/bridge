@@ -140,21 +140,9 @@
       } catch {}
     });
 
-    // Raw SSE from fin-hub relay
-    es.addEventListener("raw", (e) => {
-      const lines = e.data.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const payload = line.slice(6);
-          try {
-            const parsed = JSON.parse(payload);
-            if (parsed.text) appendToStream(parsed.text);
-            else if (parsed.content) appendToStream(parsed.content);
-          } catch {
-            if (payload.trim()) appendToStream(payload);
-          }
-        }
-      }
+    // Text chunks from fin-hub (already parsed by relay)
+    es.addEventListener("text", (e) => {
+      appendToStream(e.data);
     });
 
     es.addEventListener("done", () => endStream());

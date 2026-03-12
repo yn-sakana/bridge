@@ -1,10 +1,25 @@
 """Relay - fin-hub proxy + SSE fan-out to PC clients"""
 
+import json
 import os
 import httpx
 from .room import Room, broadcast
 
 FIN_HUB_URL = os.environ.get("FIN_HUB_URL", "http://localhost:8400")
+
+
+def _parse_sse_lines(chunk: str):
+    """Parse SSE chunk into (event, data) pairs."""
+    current_event = ""
+    for line in chunk.split("\n"):
+        line = line.rstrip("\r")
+        if line.startswith("event:"):
+            current_event = line[6:].strip()
+        elif line.startswith("data:"):
+            data = line[5:].strip()
+            if current_event:
+                yield current_event, data
+                current_event = ""
 
 
 async def relay_chat(token: str, body: dict, room: Room):
@@ -19,8 +34,9 @@ async def relay_chat(token: str, body: dict, room: Room):
     if messages:
         last = messages[-1]
         if last.get("role") == "user":
-            import json
-            broadcast(room, "message", json.dumps({"role": "user", "content": last["content"]}))
+            broadcast(room, "message", json.dumps(
+                {"role": "user", "content": last["content"]}, ensure_ascii=False
+            ))
 
     async with httpx.AsyncClient(timeout=None) as client:
         async with client.stream(
@@ -38,12 +54,20 @@ async def relay_chat(token: str, body: dict, room: Room):
                 raise Exception(f"fin-hub error: {resp.status_code}")
 
             async for chunk in resp.aiter_text():
-                # Forward to PC clients
-                broadcast(room, "raw", chunk)
-                # Yield to mobile
+                # Parse and forward events to PC
+                for event, data in _parse_sse_lines(chunk):
+                    if event == "text":
+                        broadcast(room, "text", data)
+                    elif event == "done":
+                        broadcast(room, "done", "")
+                    elif event == "error":
+                        broadcast(room, "error", data)
+                    # session, usage, tool_call etc. are not shown on PC
+
+                # Yield raw chunk to mobile (mobile gets original SSE stream)
                 yield chunk
 
-    broadcast(room, "done", "{}")
+    broadcast(room, "done", "")
 
 
 async def relay_get(token: str, path: str) -> httpx.Response:
