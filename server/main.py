@@ -21,14 +21,6 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 ROOM_ID_RE = re.compile(r"^[a-z0-9]{7}$")
 
 
-# --- Auth helper ---
-def require_token(request: Request) -> str:
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Authorization required")
-    return auth[7:].strip()
-
-
 # --- Startup ---
 @app.on_event("startup")
 async def startup():
@@ -38,7 +30,6 @@ async def startup():
 # --- API: Create room ---
 @app.post("/api/room")
 async def api_create_room(request: Request):
-    token = require_token(request)
     room = create_room()
     host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost"))
     proto = request.headers.get("x-forwarded-proto", "http")
@@ -49,7 +40,6 @@ async def api_create_room(request: Request):
 # --- API: Chat relay ---
 @app.post("/api/chat")
 async def api_chat(request: Request):
-    token = require_token(request)
     body = await request.json()
     room_id = body.get("room_id")
     if not room_id:
@@ -59,7 +49,7 @@ async def api_chat(request: Request):
         raise HTTPException(404, "Room not found")
 
     return StreamingResponse(
-        relay_chat(token, body, room),
+        relay_chat(body, room),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -105,24 +95,21 @@ async def api_stream(room_id: str):
 
 # --- API: Model list relay ---
 @app.get("/api/models/{provider}")
-async def api_models(provider: str, request: Request):
-    token = require_token(request)
-    resp = await relay_get(token, f"/api/models/{provider}")
+async def api_models(provider: str):
+    resp = await relay_get(f"/api/models/{provider}")
     return JSONResponse(resp.json(), status_code=resp.status_code)
 
 
 # --- API: Session relay ---
 @app.get("/api/sessions")
-async def api_sessions(request: Request):
-    token = require_token(request)
-    resp = await relay_get(token, "/api/sessions")
+async def api_sessions():
+    resp = await relay_get("/api/sessions")
     return JSONResponse(resp.json(), status_code=resp.status_code)
 
 
 @app.delete("/api/sessions/{session_id}")
-async def api_delete_session(session_id: str, request: Request):
-    token = require_token(request)
-    resp = await relay_delete(token, f"/api/sessions/{session_id}")
+async def api_delete_session(session_id: str):
+    resp = await relay_delete(f"/api/sessions/{session_id}")
     return JSONResponse(resp.json(), status_code=resp.status_code)
 
 

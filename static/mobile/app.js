@@ -1,6 +1,6 @@
 (function () {
   // --- State ---
-  let config = { token: "", temperature: 0.7, system_prompt: "" };
+  let config = { temperature: 0.7, system_prompt: "" };
   let roomId = null;
   let sessionId = null;
   let messages = [];
@@ -21,7 +21,6 @@
   const btnNewSession = $("btnNewSession");
   const chatArea = $("chatArea");
   const chkShowChat = $("chkShowChat");
-  const cfgToken = $("cfgToken");
   const cfgTemp = $("cfgTemp");
   const cfgTempVal = $("cfgTempVal");
   const cfgSystem = $("cfgSystem");
@@ -49,7 +48,6 @@
 
   // --- Settings ---
   $("btnSettings").onclick = () => {
-    cfgToken.value = config.token;
     cfgTemp.value = config.temperature;
     cfgTempVal.textContent = config.temperature;
     cfgSystem.value = config.system_prompt;
@@ -58,12 +56,10 @@
   $("btnSettingsCancel").onclick = () =>
     overlaySettings.classList.remove("active");
   $("btnSettingsSave").onclick = () => {
-    config.token = cfgToken.value.trim();
     config.temperature = parseFloat(cfgTemp.value);
     config.system_prompt = cfgSystem.value;
     saveConfig();
     overlaySettings.classList.remove("active");
-    loadModels();
   };
   cfgTemp.oninput = () => (cfgTempVal.textContent = cfgTemp.value);
 
@@ -73,14 +69,9 @@
 
   // --- Room ---
   async function createRoom() {
-    if (!config.token) {
-      alert("設定からHub Auth Tokenを入力してください");
-      return;
-    }
     try {
       const res = await fetch("/api/room", {
         method: "POST",
-        headers: { Authorization: "Bearer " + config.token },
       });
       if (!res.ok) throw new Error("Room creation failed: " + res.status);
       const data = await res.json();
@@ -93,7 +84,7 @@
     }
   }
 
-  if (config.token) createRoom();
+  createRoom();
 
   // --- Chat display ---
   function addChatMessage(role, content) {
@@ -139,10 +130,6 @@
   async function sendMessage() {
     const text = txtPrompt.value.trim();
     if (!text || streaming) return;
-    if (!config.token) {
-      alert("設定からHub Auth Tokenを入力してください");
-      return;
-    }
     if (!roomId) {
       await createRoom();
       if (!roomId) return;
@@ -175,7 +162,6 @@
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
-          Authorization: "Bearer " + config.token,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
@@ -246,13 +232,10 @@
 
   // --- Models ---
   async function loadModels() {
-    if (!config.token) return;
     selModel.innerHTML = '<option value="">読み込み中...</option>';
     selModel.disabled = true;
     try {
-      const res = await fetch("/api/models/" + selProvider.value, {
-        headers: { Authorization: "Bearer " + config.token },
-      });
+      const res = await fetch("/api/models/" + selProvider.value);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       selModel.innerHTML = "";

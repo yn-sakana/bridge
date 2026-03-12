@@ -6,6 +6,7 @@ import httpx
 from .room import Room, broadcast
 
 FIN_HUB_URL = os.environ.get("FIN_HUB_URL", "http://localhost:8400")
+FIN_HUB_TOKEN = os.environ.get("HUB_AUTH_TOKEN", "")
 
 
 def _parse_sse_lines(chunk: str):
@@ -22,7 +23,7 @@ def _parse_sse_lines(chunk: str):
                 current_event = ""
 
 
-async def relay_chat(token: str, body: dict, room: Room):
+async def relay_chat(body: dict, room: Room):
     """Stream chat from fin-hub, fan out to PC clients. Yields SSE chunks for mobile."""
     hub_body = {k: v for k, v in body.items() if k != "room_id"}
 
@@ -43,7 +44,7 @@ async def relay_chat(token: str, body: dict, room: Room):
             "POST",
             FIN_HUB_URL + "/api/chat/stream",
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {FIN_HUB_TOKEN}",
                 "Content-Type": "application/json",
             },
             json=hub_body,
@@ -70,17 +71,17 @@ async def relay_chat(token: str, body: dict, room: Room):
     broadcast(room, "done", "")
 
 
-async def relay_get(token: str, path: str) -> httpx.Response:
+async def relay_get(path: str) -> httpx.Response:
     async with httpx.AsyncClient(timeout=30) as client:
         return await client.get(
             FIN_HUB_URL + path,
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {FIN_HUB_TOKEN}"},
         )
 
 
-async def relay_delete(token: str, path: str) -> httpx.Response:
+async def relay_delete(path: str) -> httpx.Response:
     async with httpx.AsyncClient(timeout=30) as client:
         return await client.delete(
             FIN_HUB_URL + path,
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {FIN_HUB_TOKEN}"},
         )
