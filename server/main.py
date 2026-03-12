@@ -68,6 +68,8 @@ async def api_stream(room_id: str):
 
     async def event_generator():
         try:
+            # Padding to flush proxy buffers (Cloudflare Tunnel etc.)
+            yield ": " + " " * 2048 + "\n\n"
             # Initial event
             yield f"event: connected\ndata: {json.dumps({'mobile': room.mobile_connected})}\n\n"
 
@@ -89,7 +91,12 @@ async def api_stream(room_id: str):
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache, no-store",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+            "Transfer-Encoding": "chunked",
+        },
     )
 
 
