@@ -79,16 +79,22 @@
     if (el) navigator.clipboard.writeText(el.textContent);
   };
 
+  window.copyMsg = function (btn) {
+    const msg = btn.closest(".msg");
+    const content = msg.querySelector(".content");
+    navigator.clipboard.writeText(content ? content.textContent : msg.textContent);
+    btn.textContent = "copied";
+    setTimeout(() => { btn.textContent = "copy"; }, 1500);
+  };
+
   function addMessage(role, content) {
     waiting.classList.add("hidden");
     const div = document.createElement("div");
     div.className = "msg " + role;
     div.innerHTML =
-      '<div class="role">' +
-      role +
-      '</div><div class="content">' +
-      renderMarkdown(content) +
-      "</div>";
+      '<div class="role">' + role +
+      '</div><div class="content">' + renderMarkdown(content) +
+      '</div><button class="msg-copy-btn" onclick="copyMsg(this)">copy</button>';
     chat.appendChild(div);
     scrollToBottom();
   }
@@ -118,6 +124,11 @@
     if (currentAssistantEl) {
       const contentEl = currentAssistantEl.querySelector(".content");
       contentEl.innerHTML = renderMarkdown(currentContent);
+      const btn = document.createElement("button");
+      btn.className = "msg-copy-btn";
+      btn.textContent = "copy";
+      btn.onclick = function () { copyMsg(this); };
+      currentAssistantEl.appendChild(btn);
       currentAssistantEl = null;
       currentContent = "";
     }

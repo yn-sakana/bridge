@@ -165,11 +165,44 @@
 
   createRoom();
 
+  // --- Lightweight Markdown ---
+  function renderMarkdown(text) {
+    let html = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+      const id = "cb" + Math.random().toString(36).slice(2, 8);
+      return '<pre><code id="' + id + '">' + code.trim() +
+        '</code><button class="copy-btn" onclick="copyCode(\'' + id + "')\">copy</button></pre>";
+    });
+    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    html = html.split("\n\n").map((p) => "<p>" + p + "</p>").join("");
+    html = html.replace(/\n/g, "<br>");
+    return html;
+  }
+
+  window.copyCode = function (id) {
+    const el = document.getElementById(id);
+    if (el) navigator.clipboard.writeText(el.textContent);
+  };
+
+  window.copyMsg = function (btn) {
+    const msg = btn.closest(".msg");
+    const content = msg.querySelector(".msg-content");
+    navigator.clipboard.writeText(content ? content.textContent : msg.textContent);
+    btn.textContent = "copied";
+    setTimeout(() => { btn.textContent = "copy"; }, 1500);
+  };
+
   // --- Chat display ---
   function addChatMessage(role, content) {
     const div = document.createElement("div");
     div.className = "msg " + role;
-    div.textContent = content;
+    div.innerHTML = '<div class="msg-content">' + renderMarkdown(content) + '</div>' +
+      '<button class="msg-copy-btn" onclick="copyMsg(this)">copy</button>';
     chatArea.appendChild(div);
     scrollToBottom();
   }
@@ -178,7 +211,7 @@
     currentContent = "";
     currentAssistantEl = document.createElement("div");
     currentAssistantEl.className = "msg assistant";
-    currentAssistantEl.innerHTML = '<span class="cursor"></span>';
+    currentAssistantEl.innerHTML = '<div class="msg-content"><span class="cursor"></span></div>';
     chatArea.appendChild(currentAssistantEl);
     scrollToBottom();
   }
@@ -186,13 +219,21 @@
   function appendToStream(text) {
     if (!currentAssistantEl) startAssistantStream();
     currentContent += text;
-    currentAssistantEl.textContent = currentContent;
+    const contentEl = currentAssistantEl.querySelector(".msg-content");
+    contentEl.innerHTML = renderMarkdown(currentContent) + '<span class="cursor"></span>';
     scrollToBottom();
   }
 
   function endStream() {
     if (currentAssistantEl) {
-      currentAssistantEl.textContent = currentContent;
+      const contentEl = currentAssistantEl.querySelector(".msg-content");
+      contentEl.innerHTML = renderMarkdown(currentContent);
+      // Add copy button
+      const btn = document.createElement("button");
+      btn.className = "msg-copy-btn";
+      btn.textContent = "copy";
+      btn.onclick = function () { copyMsg(this); };
+      currentAssistantEl.appendChild(btn);
       currentAssistantEl = null;
     }
   }

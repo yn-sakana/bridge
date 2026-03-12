@@ -70,6 +70,13 @@ pre:hover .copy-btn { opacity: 1; }
 .msg .content ul, .msg .content ol { margin: 8px 0; padding-left: 24px; }
 .msg .content li { margin-bottom: 4px; }
 
+.msg-copy-btn {
+  display: inline-block; margin-top: 6px;
+  background: none; border: 1px solid #333; border-radius: 4px;
+  color: #666; padding: 2px 10px; font-size: 11px; cursor: pointer;
+}
+.msg-copy-btn:hover { color: #aaa; border-color: #555; }
+
 .cursor {
   display: inline-block; width: 8px; height: 18px;
   background: #e0e0e0; vertical-align: text-bottom;
