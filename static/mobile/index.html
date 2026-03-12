@@ -28,6 +28,9 @@
     <option value="anthropic">Anthropic</option>
     <option value="openai">OpenAI</option>
     <option value="google">Google</option>
+    <option value="claude_code">Claude Code</option>
+    <option value="codex">Codex</option>
+    <option value="ollama">Ollama</option>
   </select>
 </div>
 <div class="settings-row">
@@ -45,8 +48,10 @@
   </select>
 </div>
 
-<div class="main">
-  <div class="streaming-indicator" id="streamingIndicator">ストリーミング中...</div>
+<div class="chat-toggle">
+  <label><input type="checkbox" id="chkShowChat" checked> 出力を表示</label>
+</div>
+<div class="main" id="chatArea">
 </div>
 
 <div class="input-area">

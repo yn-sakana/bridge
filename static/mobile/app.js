@@ -19,16 +19,28 @@
   const btnSend = $("btnSend");
   const sessionIdEl = $("sessionId");
   const btnNewSession = $("btnNewSession");
-  const streamingIndicator = $("streamingIndicator");
+  const chatArea = $("chatArea");
+  const chkShowChat = $("chkShowChat");
   const cfgToken = $("cfgToken");
   const cfgTemp = $("cfgTemp");
   const cfgTempVal = $("cfgTempVal");
   const cfgSystem = $("cfgSystem");
   const overlaySettings = $("overlaySettings");
 
+  let currentAssistantEl = null;
+  let currentContent = "";
+
   // --- Init ---
   loadConfig();
   newSession();
+
+  // Chat visibility toggle
+  chkShowChat.checked = localStorage.getItem("bridge_show_chat") !== "false";
+  chatArea.classList.toggle("hidden", !chkShowChat.checked);
+  chkShowChat.onchange = () => {
+    chatArea.classList.toggle("hidden", !chkShowChat.checked);
+    localStorage.setItem("bridge_show_chat", chkShowChat.checked);
+  };
 
   txtPrompt.addEventListener("input", () => {
     txtPrompt.style.height = "auto";
@@ -83,6 +95,38 @@
 
   if (config.token) createRoom();
 
+  // --- Chat display ---
+  function addChatMessage(role, content) {
+    const div = document.createElement("div");
+    div.className = "msg " + role;
+    div.textContent = content;
+    chatArea.appendChild(div);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function startAssistantStream() {
+    currentContent = "";
+    currentAssistantEl = document.createElement("div");
+    currentAssistantEl.className = "msg assistant";
+    currentAssistantEl.innerHTML = '<span class="cursor"></span>';
+    chatArea.appendChild(currentAssistantEl);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function appendToStream(text) {
+    if (!currentAssistantEl) startAssistantStream();
+    currentContent += text;
+    currentAssistantEl.textContent = currentContent;
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function endStream() {
+    if (currentAssistantEl) {
+      currentAssistantEl.textContent = currentContent;
+      currentAssistantEl = null;
+    }
+  }
+
   // --- Send ---
   btnSend.onclick = sendMessage;
   txtPrompt.addEventListener("keydown", (e) => {
@@ -105,6 +149,7 @@
     }
 
     messages.push({ role: "user", content: text });
+    addChatMessage("user", text);
     txtPrompt.value = "";
     txtPrompt.style.height = "auto";
     streaming = true;
@@ -138,34 +183,49 @@
 
       if (!res.ok) throw new Error("Chat failed: " + res.status);
 
+      // Parse SSE stream (fin-hub format: event: text, data: raw text)
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
+      let currentEvent = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) assistantContent += parsed.text;
-              if (parsed.content) assistantContent += parsed.content;
-            } catch {
+        for (const line of chunk.split("\n")) {
+          const trimmed = line.trimEnd();
+          if (trimmed.startsWith("event:")) {
+            currentEvent = trimmed.slice(6).trim();
+          } else if (trimmed.startsWith("data:")) {
+            const data = trimmed.slice(5).trim();
+            if (currentEvent === "text") {
               assistantContent += data;
+              appendToStream(data);
+            } else if (currentEvent === "done") {
+              endStream();
+            } else if (currentEvent === "error") {
+              endStream();
+              try {
+                const err = JSON.parse(data);
+                addChatMessage("assistant", "Error: " + (err.message || data));
+              } catch {
+                addChatMessage("assistant", "Error: " + data);
+              }
             }
+            currentEvent = "";
           }
         }
       }
 
+      endStream();
       if (assistantContent) {
         messages.push({ role: "assistant", content: assistantContent });
       }
     } catch (e) {
+      endStream();
       console.error("Send error:", e);
+      addChatMessage("assistant", "Error: " + e.message);
     } finally {
       streaming = false;
       updateUI();
@@ -178,6 +238,9 @@
   function newSession() {
     sessionId = crypto.randomUUID().slice(0, 8);
     messages = [];
+    chatArea.innerHTML = "";
+    currentAssistantEl = null;
+    currentContent = "";
     sessionIdEl.textContent = sessionId;
   }
 
@@ -185,6 +248,7 @@
   async function loadModels() {
     if (!config.token) return;
     selModel.innerHTML = '<option value="">読み込み中...</option>';
+    selModel.disabled = true;
     try {
       const res = await fetch("/api/models/" + selProvider.value, {
         headers: { Authorization: "Bearer " + config.token },
@@ -205,6 +269,8 @@
       }
     } catch {
       selModel.innerHTML = '<option value="">取得失敗</option>';
+    } finally {
+      selModel.disabled = false;
     }
   }
 
@@ -216,7 +282,6 @@
 
   function updateUI() {
     btnSend.disabled = streaming;
-    streamingIndicator.classList.toggle("active", streaming);
     if (streaming) {
       setStatus("waiting", "ストリーミング中...");
     } else if (roomId) {
