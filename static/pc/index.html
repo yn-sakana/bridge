@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bridge</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Bridge</h1>
+  <div class="header-status">
+    <span id="statusText">接続中...</span>
+    <span class="status-dot" id="statusDot"></span>
+  </div>
+</header>
+
+<div class="chat" id="chat">
+  <div class="waiting" id="waiting">
+    待機中... モバイルからメッセージを送信してください
+  </div>
+</div>
+
+<script>
+  window.ROOM_ID = "{{ROOM_ID}}";
+</script>
+<script src="app.js"></script>
+</body>
+</html>

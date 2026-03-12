@@ -1,0 +1,237 @@
+(function () {
+  // --- State ---
+  let config = { token: "", temperature: 0.7, system_prompt: "" };
+  let roomId = null;
+  let sessionId = null;
+  let messages = [];
+  let streaming = false;
+
+  // --- Elements ---
+  const $ = (id) => document.getElementById(id);
+  const statusDot = $("statusDot");
+  const statusText = $("statusText");
+  const roomUrlEl = $("roomUrl");
+  const roomUrlText = $("roomUrlText");
+  const selProvider = $("selProvider");
+  const selModel = $("selModel");
+  const selThinking = $("selThinking");
+  const txtPrompt = $("txtPrompt");
+  const btnSend = $("btnSend");
+  const sessionIdEl = $("sessionId");
+  const btnNewSession = $("btnNewSession");
+  const streamingIndicator = $("streamingIndicator");
+  const cfgToken = $("cfgToken");
+  const cfgTemp = $("cfgTemp");
+  const cfgTempVal = $("cfgTempVal");
+  const cfgSystem = $("cfgSystem");
+  const overlaySettings = $("overlaySettings");
+
+  // --- Init ---
+  loadConfig();
+  newSession();
+
+  txtPrompt.addEventListener("input", () => {
+    txtPrompt.style.height = "auto";
+    txtPrompt.style.height = Math.min(txtPrompt.scrollHeight, 200) + "px";
+  });
+
+  // --- Settings ---
+  $("btnSettings").onclick = () => {
+    cfgToken.value = config.token;
+    cfgTemp.value = config.temperature;
+    cfgTempVal.textContent = config.temperature;
+    cfgSystem.value = config.system_prompt;
+    overlaySettings.classList.add("active");
+  };
+  $("btnSettingsCancel").onclick = () =>
+    overlaySettings.classList.remove("active");
+  $("btnSettingsSave").onclick = () => {
+    config.token = cfgToken.value.trim();
+    config.temperature = parseFloat(cfgTemp.value);
+    config.system_prompt = cfgSystem.value;
+    saveConfig();
+    overlaySettings.classList.remove("active");
+    loadModels();
+  };
+  cfgTemp.oninput = () => (cfgTempVal.textContent = cfgTemp.value);
+
+  // --- Provider / Model ---
+  selProvider.onchange = () => loadModels();
+  loadModels();
+
+  // --- Room ---
+  async function createRoom() {
+    if (!config.token) {
+      alert("設定からHub Auth Tokenを入力してください");
+      return;
+    }
+    try {
+      const res = await fetch("/api/room", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + config.token },
+      });
+      if (!res.ok) throw new Error("Room creation failed: " + res.status);
+      const data = await res.json();
+      roomId = data.room_id;
+      roomUrlText.textContent = data.url;
+      roomUrlEl.classList.add("active");
+      setStatus("waiting", "PC接続待ち...");
+    } catch (e) {
+      alert("ルーム作成エラー: " + e.message);
+    }
+  }
+
+  if (config.token) createRoom();
+
+  // --- Send ---
+  btnSend.onclick = sendMessage;
+  txtPrompt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  async function sendMessage() {
+    const text = txtPrompt.value.trim();
+    if (!text || streaming) return;
+    if (!config.token) {
+      alert("設定からHub Auth Tokenを入力してください");
+      return;
+    }
+    if (!roomId) {
+      await createRoom();
+      if (!roomId) return;
+    }
+
+    messages.push({ role: "user", content: text });
+    txtPrompt.value = "";
+    txtPrompt.style.height = "auto";
+    streaming = true;
+    updateUI();
+
+    try {
+      const body = {
+        room_id: roomId,
+        messages: messages,
+        provider: selProvider.value,
+        model: selModel.value,
+        temperature: config.temperature,
+        max_tokens: null,
+        system_prompt: config.system_prompt || "",
+        session_id: sessionId,
+        thinking_mode: selThinking.value || "",
+        reasoning_effort:
+          selThinking.value && selThinking.value !== "auto"
+            ? selThinking.value
+            : null,
+      };
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + config.token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error("Chat failed: " + res.status);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.text) assistantContent += parsed.text;
+              if (parsed.content) assistantContent += parsed.content;
+            } catch {
+              assistantContent += data;
+            }
+          }
+        }
+      }
+
+      if (assistantContent) {
+        messages.push({ role: "assistant", content: assistantContent });
+      }
+    } catch (e) {
+      console.error("Send error:", e);
+    } finally {
+      streaming = false;
+      updateUI();
+    }
+  }
+
+  // --- Session ---
+  btnNewSession.onclick = () => newSession();
+
+  function newSession() {
+    sessionId = crypto.randomUUID().slice(0, 8);
+    messages = [];
+    sessionIdEl.textContent = sessionId;
+  }
+
+  // --- Models ---
+  async function loadModels() {
+    if (!config.token) return;
+    selModel.innerHTML = '<option value="">読み込み中...</option>';
+    try {
+      const res = await fetch("/api/models/" + selProvider.value, {
+        headers: { Authorization: "Bearer " + config.token },
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      selModel.innerHTML = "";
+      const models = data.models || data;
+      if (Array.isArray(models)) {
+        models.forEach((m) => {
+          const name =
+            typeof m === "string" ? m : m.id || m.name || m.model;
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          selModel.appendChild(opt);
+        });
+      }
+    } catch {
+      selModel.innerHTML = '<option value="">取得失敗</option>';
+    }
+  }
+
+  // --- Status ---
+  function setStatus(state, text) {
+    statusDot.className = "status-dot " + state;
+    statusText.textContent = text;
+  }
+
+  function updateUI() {
+    btnSend.disabled = streaming;
+    streamingIndicator.classList.toggle("active", streaming);
+    if (streaming) {
+      setStatus("waiting", "ストリーミング中...");
+    } else if (roomId) {
+      setStatus("connected", "ルーム: " + roomId);
+    }
+  }
+
+  // --- Config persistence (localStorage on trusted mobile) ---
+  function loadConfig() {
+    try {
+      const saved = localStorage.getItem("bridge_config");
+      if (saved) Object.assign(config, JSON.parse(saved));
+    } catch {}
+  }
+  function saveConfig() {
+    localStorage.setItem("bridge_config", JSON.stringify(config));
+  }
+})();
