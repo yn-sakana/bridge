@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
-EXPIRY_SEC = 300  # 5 min
+EXPIRY_SEC = 1800  # 30 min
 
 
 @dataclass
