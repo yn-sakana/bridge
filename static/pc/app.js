@@ -8,6 +8,7 @@
   let currentAssistantEl = null;
   let currentContent = "";
   let autoScroll = true;
+  let nextIndex = 0;
 
   chat.addEventListener("scroll", () => {
     autoScroll = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 50;
@@ -113,44 +114,75 @@
     }
   }
 
-  // --- SSE ---
-  function connect() {
-    setStatus(false, "接続中...");
-    const es = new EventSource("/api/stream/" + ROOM_ID);
-
-    es.addEventListener("connected", (e) => {
-      setStatus(true, "接続済み");
-    });
-
-    es.addEventListener("status", (e) => {
-      const data = JSON.parse(e.data);
-      if (data.mobile) setStatus(true, "モバイル接続中");
-    });
-
-    es.addEventListener("message", (e) => {
+  function handleEvent(event, data) {
+    if (event === "status") {
       try {
-        const data = JSON.parse(e.data);
-        if (data.role === "user") {
+        const d = JSON.parse(data);
+        if (d.mobile) setStatus(true, "モバイル接続中");
+      } catch {}
+    } else if (event === "message") {
+      try {
+        const d = JSON.parse(data);
+        if (d.role === "user") {
           endStream();
-          addMessage("user", data.content);
-        } else if (data.role === "assistant") {
+          addMessage("user", d.content);
+        } else if (d.role === "assistant") {
           endStream();
-          addMessage("assistant", data.content);
+          addMessage("assistant", d.content);
         }
       } catch {}
-    });
-
-    // Text chunks from fin-hub (already parsed by relay)
-    es.addEventListener("text", (e) => {
-      appendToStream(e.data);
-    });
-
-    es.addEventListener("done", () => endStream());
-    es.addEventListener("error", () => endStream());
-    es.addEventListener("ping", () => {}); // keep alive
-
-    es.onerror = () => setStatus(false, "再接続中...");
+    } else if (event === "text") {
+      appendToStream(data);
+    } else if (event === "done") {
+      endStream();
+    } else if (event === "error") {
+      endStream();
+    }
   }
 
-  connect();
+  // --- Polling ---
+  let polling = true;
+  let pollInterval = 2000;
+  const POLL_FAST = 500;
+  const POLL_IDLE = 2000;
+
+  async function poll() {
+    if (!polling) return;
+    try {
+      const resp = await fetch("/api/events/" + ROOM_ID + "?after=" + nextIndex);
+      if (resp.status === 410) {
+        setStatus(false, "ルーム期限切れ");
+        polling = false;
+        return;
+      }
+      if (!resp.ok) {
+        setStatus(false, "エラー");
+        setTimeout(poll, 5000);
+        return;
+      }
+      const body = await resp.json();
+
+      if (body.mobile) {
+        setStatus(true, "モバイル接続中");
+      } else {
+        setStatus(true, "接続済み");
+      }
+
+      const events = body.events || [];
+      for (const ev of events) {
+        handleEvent(ev.event, ev.data);
+      }
+      nextIndex = body.next;
+
+      // Poll faster when streaming
+      pollInterval = events.length > 0 ? POLL_FAST : POLL_IDLE;
+    } catch {
+      setStatus(false, "再接続中...");
+      pollInterval = 5000;
+    }
+    setTimeout(poll, pollInterval);
+  }
+
+  setStatus(true, "接続済み");
+  poll();
 })();

@@ -96,6 +96,20 @@ async def api_stream(room_id: str):
     )
 
 
+# --- API: PC polling ---
+@app.get("/api/events/{room_id}")
+async def api_events(room_id: str, after: int = 0):
+    room = get_room(room_id)
+    if not room:
+        raise HTTPException(410, "Room not found or expired")
+    events = room.events[after:]
+    return {
+        "mobile": room.mobile_connected,
+        "events": [{"event": e, "data": d} for e, d in events],
+        "next": len(room.events),
+    }
+
+
 # --- API: Model list relay ---
 @app.get("/api/models/{provider}")
 async def api_models(provider: str):

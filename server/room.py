@@ -15,6 +15,7 @@ class Room:
     created: float
     clients: dict[str, asyncio.Queue] = field(default_factory=dict)
     mobile_connected: bool = False
+    events: list[tuple[str, str]] = field(default_factory=list)
 
 
 _rooms: dict[str, Room] = {}
@@ -44,6 +45,7 @@ def get_room(rid: str) -> Room | None:
 
 
 def broadcast(room: Room, event: str, data: str):
+    room.events.append((event, data))
     msg = (event, data)
     dead = []
     for cid, q in room.clients.items():
