@@ -21,6 +21,7 @@ jobs:
             cd ~/bridge &&
             git pull origin main &&
             .venv/bin/pip install -q -r requirements.txt &&
+            systemctl --user kill bridge 2>/dev/null || true &&
             systemctl --user restart bridge
           '
 
