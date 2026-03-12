@@ -94,8 +94,6 @@ async def api_stream(room_id: str):
         headers={
             "Cache-Control": "no-cache, no-store, no-transform",
             "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-            "Content-Encoding": "identity",
         },
     )
 
