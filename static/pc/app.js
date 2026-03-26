@@ -31,89 +31,24 @@
     statusText.textContent = text;
   }
 
-  // --- Markdown renderer ---
+  // --- Markdown renderer (marked.js) ---
+  const renderer = new marked.Renderer();
+  renderer.code = function ({ text, lang }) {
+    const id = "cb" + Math.random().toString(36).slice(2, 8);
+    const label = lang || "code";
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return '<div class="code-block">' +
+      '<div class="code-header"><span class="code-lang">' + label + '</span>' +
+      '<button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>' +
+      '<pre><code id="' + id + '">' + escaped + '</code></pre></div>';
+  };
+  renderer.link = function ({ href, text }) {
+    return '<a href="' + href + '" target="_blank" rel="noopener">' + text + '</a>';
+  };
+  marked.setOptions({ renderer, breaks: true, gfm: true });
+
   function renderMarkdown(text) {
-    let html = text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-
-    // Code blocks with language header
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-      const id = "cb" + Math.random().toString(36).slice(2, 8);
-      const header = lang
-        ? '<div class="code-header"><span class="code-lang">' + lang + '</span><button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>'
-        : '<div class="code-header"><span class="code-lang">code</span><button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>';
-      return '<div class="code-block">' + header + '<pre><code id="' + id + '">' + code.trim() + '</code></pre></div>';
-    });
-
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-
-    // Headings
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-    // Horizontal rule
-    html = html.replace(/^---$/gm, '<hr>');
-
-    // Tables
-    html = html.replace(/(?:^\|.+\|$\n?)+/gm, (table) => {
-      const rows = table.trim().split("\n");
-      if (rows.length < 2) return table;
-      let result = '<table>';
-      rows.forEach((row, i) => {
-        if (i === 1 && /^\|[\s-:|]+\|$/.test(row)) return; // skip separator
-        const cells = row.split("|").filter((c, ci, arr) => ci > 0 && ci < arr.length - 1);
-        const tag = i === 0 ? "th" : "td";
-        const wrap = i === 0 ? "thead" : (i === 2 ? "tbody" : "");
-        if (wrap === "thead") result += "<thead>";
-        if (wrap === "tbody") result += "</tbody><tbody>"; // close thead implicitly
-        result += "<tr>" + cells.map(c => "<" + tag + ">" + c.trim() + "</" + tag + ">").join("") + "</tr>";
-        if (i === 0) result += "</thead><tbody>";
-      });
-      result += "</tbody></table>";
-      return result;
-    });
-
-    // Unordered lists
-    html = html.replace(/(?:^- .+$\n?)+/gm, (block) => {
-      const items = block.trim().split("\n").map(l => "<li>" + l.replace(/^- /, "") + "</li>");
-      return "<ul>" + items.join("") + "</ul>";
-    });
-
-    // Ordered lists
-    html = html.replace(/(?:^\d+\. .+$\n?)+/gm, (block) => {
-      const items = block.trim().split("\n").map(l => "<li>" + l.replace(/^\d+\. /, "") + "</li>");
-      return "<ol>" + items.join("") + "</ol>";
-    });
-
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-
-    // Bold & italic
-    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-
-    // Blockquotes
-    html = html.replace(/(?:^&gt; .+$\n?)+/gm, (block) => {
-      const content = block.replace(/^&gt; /gm, "");
-      return "<blockquote>" + content + "</blockquote>";
-    });
-
-    // Paragraphs (double newline)
-    html = html.split("\n\n").map(p => {
-      p = p.trim();
-      if (!p) return "";
-      if (/^<(h[1-6]|ul|ol|table|div|pre|hr|blockquote)/.test(p)) return p;
-      return "<p>" + p + "</p>";
-    }).join("");
-
-    // Single newlines → <br> (within paragraphs)
-    html = html.replace(/([^>])\n([^<])/g, "$1<br>$2");
-
-    return html;
+    return marked.parse(text);
   }
 
   window.copyCode = function (id) {
