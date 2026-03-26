@@ -31,6 +31,10 @@
     statusText.textContent = text;
   }
 
+  // --- Icons ---
+  const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const ICON_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
   // --- Markdown renderer (marked.js) ---
   marked.use({
     breaks: true,
@@ -42,7 +46,7 @@
         const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         return '<div class="code-block">' +
           '<div class="code-header"><span class="code-lang">' + label + '</span>' +
-          '<button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>' +
+          '<button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">' + ICON_COPY + '</button></div>' +
           '<pre><code id="' + id + '">' + escaped + '</code></pre></div>';
       },
       link({ href, text }) {
@@ -61,9 +65,9 @@
     navigator.clipboard.writeText(el.textContent);
     const btn = document.querySelector('[data-id="' + id + '"]');
     if (btn) {
-      btn.textContent = "copied!";
+      btn.innerHTML = ICON_CHECK;
       btn.classList.add("copied");
-      setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("copied"); }, 1500);
+      setTimeout(() => { btn.innerHTML = ICON_COPY; btn.classList.remove("copied"); }, 1500);
     }
   };
 
@@ -71,8 +75,9 @@
     const msg = btn.closest(".msg");
     const content = msg.querySelector(".content");
     navigator.clipboard.writeText(content ? content.textContent : msg.textContent);
-    btn.textContent = "copied!";
-    setTimeout(() => { btn.textContent = "copy"; }, 1500);
+    btn.innerHTML = ICON_CHECK;
+    btn.classList.add("copied");
+    setTimeout(() => { btn.innerHTML = ICON_COPY; btn.classList.remove("copied"); }, 1500);
   };
 
   function addMessage(role, content) {
@@ -81,7 +86,7 @@
     div.className = "msg " + role;
     div.innerHTML =
       '<div class="content">' + renderMarkdown(content) +
-      '</div><button class="msg-copy-btn" onclick="copyMsg(this)">copy</button>';
+      '</div><button class="msg-copy-btn" onclick="copyMsg(this)">' + ICON_COPY + '</button>';
     chatInner.appendChild(div);
     scrollToBottom();
   }
@@ -111,7 +116,7 @@
       contentEl.innerHTML = renderMarkdown(currentContent);
       const btn = document.createElement("button");
       btn.className = "msg-copy-btn";
-      btn.textContent = "copy";
+      btn.innerHTML = ICON_COPY;
       btn.onclick = function () { copyMsg(this); };
       currentAssistantEl.appendChild(btn);
       currentAssistantEl = null;
