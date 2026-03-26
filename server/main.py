@@ -200,6 +200,7 @@ async def room_page(room_id: str):
 
 
 # --- Static files (must be last) ---
+app.mount("/lib", StaticFiles(directory=str(STATIC_DIR / "lib")))
 app.mount("/mobile", StaticFiles(directory=str(STATIC_DIR / "mobile"), html=True))
 app.mount("/pc", StaticFiles(directory=str(STATIC_DIR / "pc"), html=True))
 
