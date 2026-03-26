@@ -32,20 +32,24 @@
   }
 
   // --- Markdown renderer (marked.js) ---
-  const renderer = new marked.Renderer();
-  renderer.code = function ({ text, lang }) {
-    const id = "cb" + Math.random().toString(36).slice(2, 8);
-    const label = lang || "code";
-    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return '<div class="code-block">' +
-      '<div class="code-header"><span class="code-lang">' + label + '</span>' +
-      '<button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>' +
-      '<pre><code id="' + id + '">' + escaped + '</code></pre></div>';
-  };
-  renderer.link = function ({ href, text }) {
-    return '<a href="' + href + '" target="_blank" rel="noopener">' + text + '</a>';
-  };
-  marked.setOptions({ renderer, breaks: true, gfm: true });
+  marked.use({
+    breaks: true,
+    gfm: true,
+    renderer: {
+      code({ text, lang }) {
+        const id = "cb" + Math.random().toString(36).slice(2, 8);
+        const label = lang || "code";
+        const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return '<div class="code-block">' +
+          '<div class="code-header"><span class="code-lang">' + label + '</span>' +
+          '<button class="copy-btn" onclick="copyCode(\'' + id + "')\" data-id=\"" + id + '">copy</button></div>' +
+          '<pre><code id="' + id + '">' + escaped + '</code></pre></div>';
+      },
+      link({ href, text }) {
+        return '<a href="' + href + '" target="_blank" rel="noopener">' + text + '</a>';
+      }
+    }
+  });
 
   function renderMarkdown(text) {
     return marked.parse(text);
