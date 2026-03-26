@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import yaml
@@ -16,26 +17,25 @@ from fastapi.staticfiles import StaticFiles
 from .room import create_room, get_room, broadcast, cleanup_loop
 from .relay import relay_chat, relay_get, relay_delete
 
-app = FastAPI()
-
 STATIC_DIR = Path(__file__).parent.parent / "static"
 ROOM_ID_RE = re.compile(r"^[a-z0-9]{7}$")
 CONFIG_PATH = Path(__file__).parent.parent / "bridge.yaml"
 
-DEFAULT_CONFIG = {
-    "provider": "anthropic",
-    "model": "claude-opus-4-6",
-    "temperature": 0.7,
-    "system_prompt": "",
-}
+REQUIRED_KEYS = {"provider", "model", "temperature", "app_id"}
 
 
 def _load_config() -> dict:
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        return {**DEFAULT_CONFIG, **data}
-    return dict(DEFAULT_CONFIG)
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(
+            f"bridge.yaml not found: {CONFIG_PATH}\n"
+            "Create bridge.yaml with: provider, model, temperature, app_id"
+        )
+    with open(CONFIG_PATH, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    missing = REQUIRED_KEYS - set(data.keys())
+    if missing:
+        raise ValueError(f"bridge.yaml missing required keys: {missing}")
+    return data
 
 
 def _save_config(data: dict):
@@ -43,10 +43,15 @@ def _save_config(data: dict):
         yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
 
 
-# --- Startup ---
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Validate config on startup (fail fast)
+    _load_config()
     asyncio.create_task(cleanup_loop())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 # --- API: Create room ---
@@ -70,8 +75,13 @@ async def api_chat(request: Request):
     if not room:
         raise HTTPException(404, "Room not found")
 
+    cfg = _load_config()
     return StreamingResponse(
-        relay_chat(body, room),
+        relay_chat(
+            body, room,
+            app_id=cfg["app_id"],
+            context_window=cfg.get("context_window"),
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -138,11 +148,14 @@ async def api_get_config():
     return _load_config()
 
 
+MUTABLE_KEYS = {"provider", "model", "temperature", "system_prompt"}
+
+
 @app.put("/api/config")
 async def api_put_config(request: Request):
     body = await request.json()
     current = _load_config()
-    for key in DEFAULT_CONFIG:
+    for key in MUTABLE_KEYS:
         if key in body:
             current[key] = body[key]
     _save_config(current)

@@ -51,9 +51,12 @@ def _build_history_prompt(messages: list[dict], system_prompt: str) -> str:
     return "\n\n".join(parts)
 
 
-async def relay_chat(body: dict, room: Room):
+async def relay_chat(body: dict, room: Room, *, app_id: str, context_window: int | None):
     """Stream chat from fin-hub, fan out to PC clients. Yields SSE chunks for mobile."""
     hub_body = {k: v for k, v in body.items() if k != "room_id"}
+    hub_body["app_id"] = app_id
+    if context_window is not None:
+        hub_body["context_window"] = context_window
 
     provider = hub_body.get("provider", "")
     all_msgs = hub_body.get("messages", [])
