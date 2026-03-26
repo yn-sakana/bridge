@@ -110,7 +110,9 @@ async def api_stream(room_id: str):
                         # Pre-formatted SSE from fin-hub, pass through
                         yield data
                     else:
-                        yield f"event: {event}\ndata: {data}\n\n"
+                        # SSE spec: multi-line data needs each line prefixed with "data:"
+                        data_lines = "\n".join(f"data: {line}" for line in data.split("\n"))
+                        yield f"event: {event}\n{data_lines}\n\n"
                 except asyncio.TimeoutError:
                     yield "event: ping\ndata: {}\n\n"
         except asyncio.CancelledError:
